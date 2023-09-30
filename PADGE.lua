@@ -23,11 +23,8 @@ if #args == 0 then
 else
     if fs.exists(args[1]) then
         local configData = readFile(args[1])
-        if configData[1] ~= "ENG_VER = ".._G.VERSION then
-            error("PADGE: incompatible config file, expected ".."ENG_VER = ".._G.VERSION.." got "..configData[1])
-        end
-        ModelsPath = string.sub(configData[2],9,string.len(configData[2]))
-        MapPath = string.sub(configData[3],6,string.len(configData[3]))
+        ModelsPath = string.sub(configData[1],9,string.len(configData[1]))
+        MapPath = string.sub(configData[2],6,string.len(configData[2]))
     else
         error("PADGE: main config file not found")
     end
@@ -42,6 +39,69 @@ local turnSpeed = 180 -- degrees per second
 -- create a new frame
 local ThreeDFrame = Pine3D.newFrame()
 
+local objects = {
+}
+
+local function addModel(model,x,y,z,rx,ry,rz)
+  objects[#objects+1] = ThreeDFrame:newObject(ModelsPath..model, x, y, z, rx, ry, rz)
+end
+
+local function LoadMap()
+  local rawMapData = readFile(MapPath)
+  local brushes = {}
+  for i=1,#rawMapData do
+    local mapLine = 0
+    local XLine = 0
+    local YLine = 0
+    local ZLine = 0
+    print("Compiling map data:",100*(i/#rawMapData).."%")
+    sleep(0)
+    for j=1,string.len(rawMapData[i]) do --Model
+      sleep(0)
+      if string.sub(rawMapData[i],j,j) == "|" then
+        mapLine=j+1
+        break
+      end
+    end
+    for j=mapLine,string.len(rawMapData[i]) do --XCord
+      sleep(0)
+      if string.sub(rawMapData[i],j,j) == "|" then
+        XLine=j+1
+        break
+      end
+    end
+    for j=XLine,string.len(rawMapData[i]) do --YCord
+      sleep(0)
+      if string.sub(rawMapData[i],j,j) == "|" then
+        YLine=j+1
+        break
+      end
+    end
+    for j=YLine,string.len(rawMapData[i]) do --ZCord
+      sleep(0)
+      if string.sub(rawMapData[i],j,j) == "|" then
+        ZLine=j+1
+        break
+      end
+    end
+    print(string.sub(rawMapData[i],1,mapLine-2),
+    string.sub(rawMapData[i],mapLine,XLine-2),
+    string.sub(rawMapData[i],XLine,YLine-2),
+    string.sub(rawMapData[i],YLine,string.len(rawMapData[i])-1))
+    brushes[#brushes+1] = {string.sub(rawMapData[i],1,mapLine-2),
+    tonumber(string.sub(rawMapData[i],mapLine,XLine-2)),
+    tonumber(string.sub(rawMapData[i],XLine,YLine-2)),
+    tonumber(string.sub(rawMapData[i],YLine,string.len(rawMapData[i])-1))}
+  end
+  for i=1,#brushes do
+    print("Building map:",100*(i/#brushes).."%")
+    print(brushes[i][1],brushes[i][2],brushes[i][3],brushes[i][4],0,0,0)
+    sleep(0)
+    addModel(brushes[i][1],brushes[i][2],brushes[i][3],brushes[i][4],0,0,0)
+  end
+end
+LoadMap()
+
 -- initialize our own camera and update the frame camera
 local camera = {
   x = 0,
@@ -53,39 +113,6 @@ local camera = {
 }
 ThreeDFrame:setCamera(camera)
 
-local objects = {
-}
-
-local function addModel(model,x,y,z,rx,ry,rz)
-    objects[#objects+1] = ThreeDFrame:newObject(ModelsPath..model, x, y, z, rx, ry, rz)
-end
-
-local function addMap()
-    local rawMapData = readFile(MapPath)
-    camera = {x = tonumber(rawMapData[2]),y = tonumber(rawMapData[3]),z = tonumber(rawMapData[4]),
-    rotX = 0,rotY = 0,rotZ = 0}
-    local models = {}
-    local mapLine = 0
-    for i=6,#rawMapData do
-        local j = rawMapData[i]
-        mapLine = i
-        if j == "Map:" then break end
-        models[#models+1] = rawMapData[i]
-    end
-    local counter=mapLine+1
-    while true do
-        if counter == #rawMapData+5 or counter == #rawMapData+1 then
-            print(counter,"break")
-            break 
-        end
-        local toAdd = {models[tonumber(rawMapData[counter])],rawMapData[counter+1],rawMapData[counter+2],rawMapData[counter+3],
-        rawMapData[counter+4],rawMapData[counter+5],rawMapData[counter+6]}
-        print(counter,toAdd[1],tonumber(toAdd[2]),tonumber(toAdd[3]),tonumber(toAdd[4]),tonumber(toAdd[5]),tonumber(toAdd[6]),tonumber(toAdd[7]))
-        addModel(toAdd[1],tonumber(toAdd[2]),tonumber(toAdd[3]),tonumber(toAdd[4]),tonumber(toAdd[5]),tonumber(toAdd[6]),tonumber(toAdd[7]))
-        counter=counter+7
-    end
-end
-addMap()
 -- handle all keypresses and store in a lookup table
 -- to check later if a key is being pressed
 local keysDown = {}
