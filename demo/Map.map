@@ -1,8 +1,5 @@
-pineapple|0|0|0|
-pineapple|2|0|0|
-pineapple|0|2|0|
-pineapple|0|0|2|
-pineapple|2|2|0|
-pineapple|0|2|2|
-pineapple|2|0|2|
-pineapple|2|2|2|
+model|x|y|z|solidity|sizeX|sizeY|sizeZ|
+box|0|0|2|1|1|1|1|
+box|3|0|0|1|1|1|1|
+box|0|-5|0|1|1|1|1|
+box|0|-4.5|1|1|1|1|1|
