@@ -1,6 +1,8 @@
 local args={...}
 _G.VERSION = "DEV_1"
-
+TEMPBREAK = false
+BREAK = false
+LaunchAtDeath=false
 
 local function readFile(path)
     if fs.exists(path) then
@@ -15,18 +17,6 @@ local function readFile(path)
         return returnData
     else
         return {}
-    end
-end
-
-if #args == 0 then
-    error("Usage: PADGE <config>")
-else
-    if fs.exists(args[1]) then
-        local configData = readFile(args[1])
-        ModelsPath = string.sub(configData[1],9,string.len(configData[1]))
-        MapPath = string.sub(configData[2],6,string.len(configData[2]))
-    else
-        error("PADGE: main config file not found")
     end
 end
 
@@ -51,9 +41,22 @@ local function addModel(model,x,y,z,rx,ry,rz,isSolid,sizeX,sizeY,sizeZ)
 end
 
 local function LoadMap()
+  objects={}
+  objectInfo={}
+  if #args == 0 then
+    error("Usage: PADGE <config>")
+  else
+      if fs.exists(args[1]) then
+          local configData = readFile(args[1])
+          ModelsPath = string.sub(configData[1],9,string.len(configData[1]))
+          MapPath = string.sub(configData[2],6,string.len(configData[2]))
+      else
+          error("PADGE: main config file not found")
+      end
+  end
   local rawMapData = readFile(MapPath)
   local brushes = {}
-  if #rawMapData > 19999 then
+  if #rawMapData > 9999 then
     printError("WARNING: map contains",(#rawMapData/1000).."k lines!")
     print("This is will cause bad preformance!")
     print("To continue enter 'ok' and press enter")
@@ -185,6 +188,7 @@ end
 ----Modifiers----
 Cheat_NoClip=false
 Debug_ShowCords=false
+Debug_ShowTPF=true
 
 -- initialize our own camera or update the frame camera
 local camera = {
@@ -212,7 +216,6 @@ local function keyInput()
     end
   end
 end
-
 -- update the camera position based on the keys being pressed
 -- and the time passed since the last step
 JumpCounter=0
@@ -232,14 +235,19 @@ local function handleCameraMovement(dt)
   if keysDown[keys.up] then
     camera.rotZ = math.min(80, camera.rotZ + turnSpeed * dt)
   end
-  if keysDown[keys.f1] then
+  if keysDown[keys.f5] then
+    keysDown={}
+    TEMPBREAK=true
+    LoadMap()
+    TEMPBREAK=false
+  end
+  if keysDown[keys.f] then
     keysDown={}
     if Cheat_NoClip then
       Cheat_NoClip=false
     else
       Cheat_NoClip=true
     end
-    sleep(0.5)
   end
 
   -- handle wasd keys for camera movement
@@ -303,7 +311,6 @@ end
 -- handle the game logic and camera movement in steps
 local function gameLoop()
   local lastTime = os.clock()
-
   while true do
     -- compute the time passed since last step
     local currentTime = os.clock()
@@ -318,19 +325,46 @@ local function gameLoop()
     os.pullEventRaw("gameLoop")
   end
 end
-
+TPF=0
 -- render the objects
+function DrawOverlays()
+  while true do
+    if Debug_ShowTPF then
+      term.setCursorPos(1,2)
+      print("TPF:",TPF)
+    end
+    -- use a fake event to yield the coroutine
+    os.queueEvent("overlays")
+    os.pullEventRaw("overlays")
+  end
+end
 local function rendering()
   while true do
-    -- load all objects onto the buffer and draw the buffer
-    ThreeDFrame:drawObjects(objects)
-    ThreeDFrame:drawBuffer()
-
-    -- use a fake event to yield the coroutine
-    os.queueEvent("rendering")
-    os.pullEventRaw("rendering")
+    while true do
+      ST=os.clock()
+      -- load all objects onto the buffer and draw the buffer
+      ThreeDFrame:drawObjects(objects)
+      ThreeDFrame:drawBuffer()
+      -- use a fake event to yield the coroutine
+      os.queueEvent("rendering")
+      os.pullEventRaw("rendering")
+      TPF = (os.clock() - ST)
+      if TPF > 0.15 then
+        error("[PADGE PANIC] TPF="..TPF)
+      end
+      if TEMPBREAK or BREAK then
+        break
+      end
+    end
+    if TEMPBREAK then
+      while TEMPBREAK do
+        sleep(0)
+      end
+    else
+      return true
+    end
   end
 end
 
 -- start the functions to run in parallel
-parallel.waitForAny(keyInput, gameLoop, rendering)
+parallel.waitForAny(keyInput, gameLoop, rendering, DrawOverlays)
